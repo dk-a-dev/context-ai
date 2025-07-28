@@ -33,22 +33,22 @@ class QueryResponse(BaseModel):
         ...,
         description="List of answers corresponding to the input questions"
     )
-    processing_time: Optional[float] = Field(
-        None,
-        description="Total processing time in seconds"
-    )
-    documents_processed: Optional[int] = Field(
-        None,
-        description="Number of documents successfully processed"
-    )
-    questions_processed: Optional[int] = Field(
-        None,
-        description="Number of questions processed"
-    )
-    vector_index_stats: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Statistics about the vector index"
-    )
+    # processing_time: Optional[float] = Field(
+    #     None,
+    #     description="Total processing time in seconds"
+    # )
+    # documents_processed: Optional[int] = Field(
+    #     None,
+    #     description="Number of documents successfully processed"
+    # )
+    # questions_processed: Optional[int] = Field(
+    #     None,
+    #     description="Number of questions processed"
+    # )
+    # vector_index_stats: Optional[Dict[str, Any]] = Field(
+    #     None,
+    #     description="Statistics about the vector index"
+    # )
     error: Optional[str] = Field(
         None,
         description="Error message if processing failed"

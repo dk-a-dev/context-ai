@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.db
+*.sqlite3
+.cache/
+.git/
+.gitignore
+CACHE_SYSTEM_OVERVIEW.md
+COMPREHENSIVE_PERFORMANCE_ANALYSIS.md
+IMPLEMENTATION_SUMMARY.md

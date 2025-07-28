@@ -491,7 +491,11 @@ class HybridLLMService:
         
         response = self.gemini_client.models.generate_content(
             model=self.gemini_model,
-            contents=contents,
+            contents=contents+"""You are a smart agent, a question will be asked to you with the relevant 
+context provided here. Answer the question based on the context provided.
+Under no circumstances should you make stuff up or use something that has not
+been provided. If the question cannot be answered using the given context 
+explicitly mention so, also give to the point one-two line response for each question""",
             config=types.GenerateContentConfig(
                 temperature=temperature,
                 max_output_tokens=max_tokens,

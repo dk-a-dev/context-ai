@@ -186,7 +186,6 @@ Context-IQ is a high-performance LLM-powered document processing and query retri
 
 ### **🚀 Speed Optimization Roadmap**
 
-#### **Phase 1: Immediate Wins (1-2 weeks)**
 1. **Question Pattern Caching**
    ```python
    # Cache variations of similar questions
@@ -217,8 +216,6 @@ Context-IQ is a high-performance LLM-powered document processing and query retri
    }
    # Expected: 50% faster vector search
    ```
-
-#### **Phase 2: Advanced Optimizations (2-4 weeks)**
 1. **GPU Acceleration**
    ```python
    # CUDA-enabled vector search
@@ -251,7 +248,6 @@ Context-IQ is a high-performance LLM-powered document processing and query retri
    # Expected: 60% better accuracy + speed
    ```
 
-#### **Phase 3: Production Scale (4-8 weeks)**
 1. **Redis Distributed Caching**
    ```python
    # Distributed cache across multiple instances
@@ -319,7 +315,7 @@ OPENAI_MODEL=gpt-4o-mini
 
 # Google Gemini Configuration  
 GOOGLE_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.5-pro
+GEMINI_MODEL=gemini-2.5-flash
 
 # API Configuration
 API_TOKEN=your_secure_api_token_here
