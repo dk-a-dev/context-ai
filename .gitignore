@@ -122,4 +122,3 @@ downloads/
 *.log
 *.sqlite
 *.db
-app/core/config.py
