@@ -53,9 +53,9 @@ class QueryProcessingService:
         start_time = time.time()
         
         try:
-            # Step 1: Process documents
+            # Step 1: Process documents in parallel
             logger.info(f"Processing {len(document_urls)} documents")
-            processed_docs = await self._process_documents(document_urls)
+            processed_docs = await self._process_documents_parallel(document_urls)
             
             if not processed_docs:
                 return {
@@ -71,19 +71,9 @@ class QueryProcessingService:
             if not index_success:
                 logger.warning("Failed to add documents to vector index")
             
-            # Step 3: Process each question
+            # Step 3: Process questions in parallel
             logger.info(f"Processing {len(questions)} questions")
-            answers = []
-            
-            for i, question in enumerate(questions):
-                logger.info(f"Processing question {i+1}/{len(questions)}: {question[:100]}...")
-                
-                try:
-                    answer = await self._process_single_question(question, processed_docs)
-                    answers.append(answer)
-                except Exception as e:
-                    logger.error(f"Error processing question {i+1}: {str(e)}")
-                    answers.append(f"Error processing question: {str(e)}")
+            answers = await self._process_questions_parallel(questions, processed_docs)
             
             # Step 4: Prepare response
             processing_time = time.time() - start_time
@@ -107,31 +97,53 @@ class QueryProcessingService:
                 "processing_time": time.time() - start_time
             }
     
-    async def _process_documents(self, document_urls: List[str]) -> List[Dict[str, Any]]:
-        """Process multiple documents concurrently"""
+    async def _process_documents_parallel(self, document_urls: List[str]) -> List[Dict[str, Any]]:
+        """Process documents in parallel with semaphore"""
         processed_docs = []
         
-        # Process documents concurrently
+        # Check cache first
         tasks = []
         for url in document_urls:
             if url in self.document_cache:
                 logger.info(f"Using cached document: {url}")
                 processed_docs.append(self.document_cache[url])
             else:
-                tasks.append(self._process_single_document(url))
+                tasks.append(url)
         
         if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            semaphore = asyncio.Semaphore(5)  # Limit concurrent processing
+            
+            async def process_with_semaphore(url):
+                async with semaphore:
+                    return await self._process_single_document(url)
+            
+            task_coroutines = [process_with_semaphore(url) for url in tasks]
+            results = await asyncio.gather(*task_coroutines, return_exceptions=True)
             
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
-                    logger.error(f"Error processing document {document_urls[i]}: {str(result)}")
+                    logger.error(f"Error processing document {tasks[i]}: {str(result)}")
                 else:
                     processed_docs.append(result)
                     # Cache the processed document
                     self.document_cache[result["url"]] = result
         
         return processed_docs
+    
+    async def _process_questions_parallel(self, questions: List[str], processed_docs: List[Dict[str, Any]]):
+        """Process questions in parallel with semaphore"""
+        semaphore = asyncio.Semaphore(10)  # Higher concurrency for questions
+        
+        async def process_with_semaphore(question):
+            async with semaphore:
+                try:
+                    return await self._process_single_question(question, processed_docs)
+                except Exception as e:
+                    logger.error(f"Error processing question: {str(e)}")
+                    return f"Error processing question: {str(e)}"
+        
+        tasks = [process_with_semaphore(q) for q in questions]
+        return await asyncio.gather(*tasks, return_exceptions=True)
     
     async def _process_single_document(self, document_url: str) -> Dict[str, Any]:
         """Process a single document"""
@@ -167,8 +179,8 @@ class QueryProcessingService:
                 # Fallback: use simple text matching if vector search fails
                 search_results = self._fallback_text_search(question, processed_docs)
             
-            # Step 3: Extract relevant clauses from search results
-            relevant_clauses = [result["text"] for result in search_results[:5]]
+            # Step 3: Extract relevant clauses from search results (limit to top 3 for optimization)
+            relevant_clauses = [result["text"] for result in search_results[:3]]
             
             if not relevant_clauses:
                 return "I couldn't find relevant information in the provided documents to answer this question."
@@ -241,8 +253,8 @@ class QueryProcessingService:
         """Generate answer using document-aware caching with context"""
         
         try:
-            # Prepare context from relevant clauses
-            context = "\n\n".join([f"Clause {i+1}: {clause}" for i, clause in enumerate(relevant_clauses)])
+            # Prepare optimized context from relevant clauses (limit to most relevant parts)
+            context = "\n".join([f"- {clause}" for clause in relevant_clauses])
             
             # Determine answer type based on query analysis
             intent = query_analysis.get("intent", "search")

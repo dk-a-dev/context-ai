@@ -3,6 +3,7 @@ Hybrid LLM Service Integration with Multiple Providers and Question Caching
 Supports both OpenAI and Google Gemini with intelligent fallback and caching
 """
 
+import asyncio
 import logging
 import hashlib
 import json
@@ -237,6 +238,15 @@ class HybridLLMService:
     - Comprehensive error handling
     """
     
+    # Streamlined prompt templates
+    SYSTEM_INSTRUCTION_TEMPLATES = {
+        "default": "You are a helpful assistant that answers questions based on provided context.",
+        "insurance": "You are an expert insurance policy analyst. Answer questions precisely using only the provided context.",
+        "legal": "You are a legal document expert. Provide accurate information citing specific clauses.",
+        "hr": "You are an HR policy specialist. Answer questions about company policies and benefits.",
+        "compliance": "You are a compliance officer. Provide answers based on regulatory documents."
+    }
+    
     def __init__(self, primary_provider: Literal["openai", "gemini"] = "gemini"):
         """
         Initialize the hybrid LLM service
@@ -266,6 +276,19 @@ class HybridLLMService:
             self.gemini_client = None
         
         logger.info(f"🚀 Hybrid LLM Service initialized with primary provider: {primary_provider}")
+    
+    def detect_domain(self, question: str) -> str:
+        """Detect domain based on question keywords"""
+        question_lower = question.lower()
+        if any(kw in question_lower for kw in ["policy", "cover", "claim", "premium"]):
+            return "insurance"
+        if any(kw in question_lower for kw in ["clause", "agreement", "contract", "legal"]):
+            return "legal"
+        if any(kw in question_lower for kw in ["employee", "benefit", "hr", "leave"]):
+            return "hr"
+        if any(kw in question_lower for kw in ["compliance", "regulation", "standard"]):
+            return "compliance"
+        return "default"
     
     async def generate_response_with_document(
         self,
@@ -300,8 +323,13 @@ class HybridLLMService:
             if cached_answer:
                 return cached_answer
         
-        # Create the full prompt with context
-        full_prompt = f"{context}\n\nQuestion: {question}"
+        # Domain-specific system instructions
+        if not system_instruction:
+            domain = self.detect_domain(question)
+            system_instruction = self.SYSTEM_INSTRUCTION_TEMPLATES.get(domain, self.SYSTEM_INSTRUCTION_TEMPLATES["default"])
+        
+        # Streamlined prompt
+        full_prompt = f"Context: {context}\n\nQuestion: {question}\n\nAnswer:"
         
         # Determine which provider to use
         target_provider = provider or self.primary_provider
@@ -446,7 +474,7 @@ class HybridLLMService:
         max_tokens: int, 
         system_instruction: Optional[str]
     ) -> str:
-        """Generate response using OpenAI"""
+        """Generate response using OpenAI with timeout"""
         messages = []
         
         if system_instruction:
@@ -454,14 +482,17 @@ class HybridLLMService:
         
         messages.append({"role": "user", "content": prompt})
         
-        response = self.openai_client.chat.completions.create(
-            model=self.openai_model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=1.0,
-            frequency_penalty=0,
-            presence_penalty=0
+        response = await asyncio.wait_for(
+            self.openai_client.chat.completions.create(
+                model=self.openai_model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=1.0,
+                frequency_penalty=0,
+                presence_penalty=0
+            ),
+            timeout=30.0
         )
         
         if response.choices and response.choices[0].message.content:

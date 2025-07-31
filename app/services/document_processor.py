@@ -21,6 +21,12 @@ from docx import Document
 import email
 from email.mime.text import MIMEText
 
+# Add these imports
+import re
+from nltk.tokenize import sent_tokenize
+import nltk
+nltk.download('punkt', quiet=True)
+
 # Embedding and chunking
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -35,7 +41,7 @@ class DocumentProcessor:
     
     def __init__(self):
         """Initialize document processor"""
-        self.embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        self.embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL, device='cpu')
         logger.info(f"Initialized document processor with embedding model: {settings.EMBEDDING_MODEL}")
     
     async def download_document(self, url: str) -> bytes:
@@ -76,14 +82,14 @@ class DocumentProcessor:
             pdf_reader = PyPDF2.PdfReader(pdf_file)
             
             text = ""
-            for page_num, page in enumerate(pdf_reader.pages):
+            for page in pdf_reader.pages:
                 try:
-                    page_text = page.extract_text()
-                    text += f"\n--- Page {page_num + 1} ---\n{page_text}\n"
-                except Exception as e:
-                    logger.warning(f"Error extracting text from page {page_num + 1}: {str(e)}")
+                    text += page.extract_text() + "\n"
+                except Exception:
                     continue
             
+            # Remove redundant whitespace
+            text = re.sub(r'\s+', ' ', text).strip()
             logger.info(f"Extracted {len(text)} characters from PDF")
             return text
             
@@ -179,39 +185,30 @@ class DocumentProcessor:
         chunk_size = chunk_size or settings.CHUNK_SIZE
         overlap = overlap or settings.CHUNK_OVERLAP
         
-        # Simple sentence-aware chunking
-        sentences = text.split('. ')
+        # Use sentence tokenization for better chunk boundaries
+        sentences = sent_tokenize(text)
         chunks = []
         current_chunk = ""
         chunk_id = 0
         
         for sentence in sentences:
             if len(current_chunk) + len(sentence) > chunk_size and current_chunk:
-                # Save current chunk
                 chunks.append({
                     "id": chunk_id,
                     "text": current_chunk.strip(),
                     "length": len(current_chunk),
-                    "start_pos": len("".join([c["text"] for c in chunks])),
                 })
-                
-                # Start new chunk with overlap
-                if overlap > 0:
-                    overlap_text = current_chunk[-overlap:] if len(current_chunk) > overlap else current_chunk
-                    current_chunk = overlap_text + " " + sentence + ". "
-                else:
-                    current_chunk = sentence + ". "
                 chunk_id += 1
+                # Start new chunk with overlap
+                current_chunk = current_chunk[-overlap:] + " " + sentence if overlap > 0 else sentence
             else:
-                current_chunk += sentence + ". "
+                current_chunk += " " + sentence
         
-        # Add final chunk
         if current_chunk.strip():
             chunks.append({
                 "id": chunk_id,
                 "text": current_chunk.strip(),
                 "length": len(current_chunk),
-                "start_pos": len("".join([c["text"] for c in chunks])),
             })
         
         logger.info(f"Created {len(chunks)} chunks from text")
@@ -228,9 +225,14 @@ class DocumentProcessor:
             Numpy array of embeddings
         """
         try:
-            embeddings = self.embedding_model.encode(texts, convert_to_numpy=True)
-            logger.info(f"Created embeddings for {len(texts)} texts, shape: {embeddings.shape}")
-            return embeddings
+            # Batch processing for efficiency
+            batch_size = 32
+            embeddings = []
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i+batch_size]
+                embeddings.append(self.embedding_model.encode(batch, convert_to_numpy=True))
+            
+            return np.vstack(embeddings)
         except Exception as e:
             logger.error(f"Error creating embeddings: {str(e)}")
             raise

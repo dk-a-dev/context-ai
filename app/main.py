@@ -10,6 +10,8 @@ ssl._create_default_https_context = ssl._create_stdlib_context
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
 import uvicorn
 import logging
 from contextlib import asynccontextmanager
@@ -30,6 +32,11 @@ security = HTTPBearer()
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     logger.info("Starting Context-IQ Application...")
+    
+    # Initialize FastAPI Cache
+    FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
+    logger.info("FastAPI Cache initialized with InMemory backend")
+    
     yield
     logger.info("Shutting down Context-IQ Application...")
 
