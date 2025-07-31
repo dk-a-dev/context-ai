@@ -25,7 +25,7 @@ Response Formatting & Caching: ~5-10 seconds
 - **Document Size Impact**: Large insurance policy (multiple pages)
 - **Question Complexity**: Detailed policy-specific queries requiring deep analysis
 - **Vector Search**: FAISS backend with 800 total vectors
-- **LLM Provider**: OpenAI GPT-4o-mini (primary)
+- **LLM Provider**: Gemini-flash
 - **Concurrent Processing**: 5 questions processed in parallel
 
 ### 🎯 **Accuracy Assessment**

@@ -19,10 +19,33 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.logging_config import setup_logging
+import subprocess
+import os
 
 # Setup logging
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Run NLTK setup script at startup
+try:
+    # Always resolve path relative to project root
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+    script_path = os.path.join(project_root, 'nltk_setup.py')
+    print(f"Project root directory: {project_root}")
+    print(f"Running NLTK setup script: {script_path}")
+    if os.path.exists(script_path):
+        result = subprocess.run(["python3", script_path], check=False)
+        if result.returncode == 0:
+            logger.info("Successfully ran nltk_setup.py to ensure NLTK resources are available.")
+        else:
+            logger.error("Failed to download NLTK 'punkt' resource. Server will not start.")
+            raise SystemExit("NLTK 'punkt' resource not available. Exiting.")
+    else:
+        logger.error(f"nltk_setup.py not found at {script_path}")
+        raise SystemExit("nltk_setup.py not found. Exiting.")
+except Exception as e:
+    logger.error(f"Failed to run nltk_setup.py: {e}")
+    raise SystemExit("NLTK setup failed. Exiting.")
 
 # Security
 security = HTTPBearer()

@@ -26,7 +26,7 @@ class QueryProcessingService:
         Args:
             use_pinecone: Whether to use Pinecone for vector search
         """
-        self.llm_service = HybridLLMService(primary_provider="gemini")  # Use Gemini as primary
+        self.llm_service = HybridLLMService(primary_provider="gemini")
         self.document_processor = DocumentProcessor()
         self.vector_search = VectorSearchService(use_pinecone=use_pinecone)
         
@@ -90,9 +90,10 @@ class QueryProcessingService:
             return response
             
         except Exception as e:
-            logger.error(f"Error in query processing: {str(e)}")
+            import traceback
+            logger.error(f"Error in query processing: {str(e)}\n{traceback.format_exc()}")
             return {
-                "error": str(e),
+                "error": f"{str(e)}\n{traceback.format_exc()}",
                 "answers": [],
                 "processing_time": time.time() - start_time
             }
@@ -112,17 +113,21 @@ class QueryProcessingService:
         
         if tasks:
             semaphore = asyncio.Semaphore(5)  # Limit concurrent processing
-            
+
             async def process_with_semaphore(url):
                 async with semaphore:
-                    return await self._process_single_document(url)
-            
+                    try:
+                        return await self._process_single_document(url)
+                    except Exception as e:
+                        logger.error(f"Error processing document {url}: {str(e)}")
+                        return None
+
             task_coroutines = [process_with_semaphore(url) for url in tasks]
-            results = await asyncio.gather(*task_coroutines, return_exceptions=True)
-            
+            results = await asyncio.gather(*task_coroutines)
+
             for i, result in enumerate(results):
-                if isinstance(result, Exception):
-                    logger.error(f"Error processing document {tasks[i]}: {str(result)}")
+                if result is None:
+                    logger.error(f"Skipping document due to processing error: {tasks[i]}")
                 else:
                     processed_docs.append(result)
                     # Cache the processed document
@@ -153,7 +158,8 @@ class QueryProcessingService:
             logger.info(f"Successfully processed document: {document_url}")
             return processed_doc
         except Exception as e:
-            logger.error(f"Error processing document {document_url}: {str(e)}")
+            import traceback
+            logger.error(f"Error processing document {document_url}: {str(e)}\n{traceback.format_exc()}")
             raise
     
     async def _process_single_question(
@@ -203,8 +209,9 @@ class QueryProcessingService:
             return answer
             
         except Exception as e:
-            logger.error(f"Error processing question '{question}': {str(e)}")
-            return f"I encountered an error while processing this question: {str(e)}"
+            import traceback
+            logger.error(f"Error processing question '{question}': {str(e)}\n{traceback.format_exc()}")
+            return f"I encountered an error while processing this question: {str(e)}\n{traceback.format_exc()}"
     
     def _fallback_text_search(
         self,
@@ -300,8 +307,9 @@ If the question cannot be fully answered from the provided clauses, please indic
             return answer
             
         except Exception as e:
-            logger.error(f"Error generating answer: {str(e)}")
-            return f"I encountered an error while generating the answer: {str(e)}"
+            import traceback
+            logger.error(f"Error generating answer: {str(e)}\n{traceback.format_exc()}")
+            return f"I encountered an error while generating the answer: {str(e)}\n{traceback.format_exc()}"
     
     async def get_explanation(
         self,
@@ -320,8 +328,9 @@ If the question cannot be fully answered from the provided clauses, please indic
             return explanation
             
         except Exception as e:
-            logger.error(f"Error generating explanation: {str(e)}")
-            return f"Unable to generate explanation: {str(e)}"
+            import traceback
+            logger.error(f"Error generating explanation: {str(e)}\n{traceback.format_exc()}")
+            return f"Unable to generate explanation: {str(e)}\n{traceback.format_exc()}"
     
     def get_system_stats(self) -> Dict[str, Any]:
         """Get comprehensive system statistics"""

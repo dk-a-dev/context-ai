@@ -24,10 +24,6 @@ from email.mime.text import MIMEText
 # Add these imports
 import re
 from nltk.tokenize import sent_tokenize
-import nltk
-nltk.download('punkt', quiet=True)
-
-# Embedding and chunking
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
@@ -255,13 +251,23 @@ class DocumentProcessor:
             text = ""
             file_type = "unknown"
             
-            # Simple file type detection based on content
+            # Improved file type detection
             if content.startswith(b'%PDF'):
-                text = self.extract_text_from_pdf(content)
-                file_type = "pdf"
-            elif b'PK' in content[:4]:  # DOCX files are ZIP-based
-                text = self.extract_text_from_docx(content)
-                file_type = "docx"
+                try:
+                    text = self.extract_text_from_pdf(content)
+                    file_type = "pdf"
+                except Exception as pdf_err:
+                    logger.error(f"PDF extraction failed: {pdf_err}")
+                    text = content.decode('utf-8', errors='ignore')
+                    file_type = "text"
+            elif content[:2] == b'PK':
+                try:
+                    text = self.extract_text_from_docx(content)
+                    file_type = "docx"
+                except Exception as docx_err:
+                    logger.error(f"DOCX extraction failed: {docx_err}")
+                    text = content.decode('utf-8', errors='ignore')
+                    file_type = "text"
             elif b'From:' in content[:1000] or b'Subject:' in content[:1000]:
                 text = self.extract_text_from_email(content)
                 file_type = "email"
@@ -269,6 +275,11 @@ class DocumentProcessor:
                 # Try to decode as plain text
                 text = content.decode('utf-8', errors='ignore')
                 file_type = "text"
+
+            # If text extraction failed, raise a clear error
+            if not text or text.strip() == "":
+                logger.error(f"Text extraction failed for document: {document_url}. No text could be extracted.")
+                raise Exception("Text extraction failed. File may be corrupted or unsupported format.")
             
             # Create chunks
             chunks = self.chunk_text(text)

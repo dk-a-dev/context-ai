@@ -369,53 +369,6 @@ async def clear_cache():
             detail=f"Failed to clear cache: {str(e)}"
         )
 
-
-@router.post(
-    "/provider/switch",
-    summary="Switch LLM provider",
-    description="Switch between OpenAI and Gemini as the primary LLM provider"
-)
-async def switch_provider(provider: str):
-    """
-    Switch the primary LLM provider
-    
-    Args:
-        provider: Provider name ("openai" or "gemini")
-        
-    Returns:
-        Success message with new provider info
-    """
-    try:
-        if provider not in ["openai", "gemini"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Provider must be 'openai' or 'gemini'"
-            )
-        
-        old_provider = query_service.llm_service.primary_provider
-        query_service.llm_service.switch_primary_provider(provider)
-        
-        return {
-            "success": True,
-            "message": f"Primary provider switched from {old_provider} to {provider}",
-            "old_provider": old_provider,
-            "new_provider": provider,
-            "providers_available": {
-                "openai": query_service.llm_service.openai_client is not None,
-                "gemini": query_service.llm_service.gemini_client is not None
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error switching provider: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to switch provider: {str(e)}"
-        )
-
-
 @router.get(
     "/provider/status",
     summary="Get provider status",
@@ -434,10 +387,6 @@ async def get_provider_status():
         return {
             "primary_provider": query_service.llm_service.primary_provider,
             "providers_available": {
-                "openai": {
-                    "available": query_service.llm_service.openai_client is not None,
-                    "model": settings.OPENAI_MODEL if hasattr(settings, 'OPENAI_MODEL') else None
-                },
                 "gemini": {
                     "available": query_service.llm_service.gemini_client is not None,
                     "model": settings.GEMINI_MODEL if hasattr(settings, 'GEMINI_MODEL') else None

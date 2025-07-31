@@ -4,7 +4,6 @@ python-multipart
 pydantic
 pydantic-settings
 python-dotenv
-openai
 google-genai
 pinecone-client
 faiss-cpu
@@ -13,14 +12,9 @@ numpy
 pypdf2
 python-docx
 requests
-aiofiles
 sentence-transformers
 langchain
 langchain-google-genai
 langchain-pinecone
-psycopg2-binary
-sqlalchemy
-alembic
-pytest
-pytest-asyncio
-httpx
+fastapi_cache
+nltk

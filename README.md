@@ -7,7 +7,7 @@ Context-IQ is a high-performance LLM-powered document processing and query retri
 ## 🚀 Key Features
 
 ### 🔄 **Hybrid LLM Support**
-- **Dual Provider Architecture**: Supports both OpenAI GPT and Google Gemini
+- **Dual Provider Architecture**: Supports bothGoogle Gemini, cache and other LLM providers can be integrated as well
 - **Intelligent Fallback**: Automatically switches providers on failures
 - **Dynamic Provider Switching**: Change primary provider at runtime
 - **Provider Health Monitoring**: Track availability and performance
@@ -51,8 +51,8 @@ Context-IQ is a high-performance LLM-powered document processing and query retri
                          │                             │                             │
                          ▼                             ▼                             ▼
                 ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
-                │   OpenAI GPT    │         │  Google Gemini  │         │Document-Aware   │
-                │   (gpt-4o-mini) │         │ (gemini-2.5-pro)│         │    Cache        │
+                │ Google Gemini   │         │Document-Aware   │
+                │ (gemini-2.5-pro)│         │    Cache        │
                 └─────────────────┘         └─────────────────┘         └─────────────────┘
                                                        │
                          ┌─────────────────────────────┼─────────────────────────────┐
@@ -309,10 +309,6 @@ Context-IQ is a high-performance LLM-powered document processing and query retri
 ### Environment Variables
 
 ```bash
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
-
 # Google Gemini Configuration  
 GOOGLE_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
@@ -389,20 +385,9 @@ Check current LLM provider status and availability
 **Response:**
 ```json
 {
-  "primary_provider": "openai",
-  "openai_available": true,
+  "primary_provider": "gemini",
   "gemini_available": true,
   "last_updated": "2025-07-27T10:30:00Z"
-}
-```
-
-#### **POST /api/v1/provider/switch**
-Switch between OpenAI and Gemini providers
-
-**Request Body:**
-```json
-{
-  "provider": "gemini"
 }
 ```
 
@@ -420,8 +405,7 @@ Get cache performance statistics
   "hit_count": 0,
   "miss_count": 9,
   "hit_rate_percentage": 0.0,
-  "primary_provider": "openai",
-  "openai_available": true,
+  "primary_provider": "gemini",
   "gemini_available": true
 }
 ```

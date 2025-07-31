@@ -13,8 +13,6 @@ class Settings(BaseSettings):
     # Google Gemini API Configuration
     GOOGLE_API_KEY: str
     GEMINI_MODEL: str
-    OPENAI_API_KEY: str
-    OPENAI_MODEL: str
     
     # Pinecone Configuration
     PINECONE_API_KEY: Optional[str]
