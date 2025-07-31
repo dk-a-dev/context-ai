@@ -52,6 +52,7 @@ class VectorSearchService:
             self._init_pinecone()
         else:
             self._init_faiss()
+            self._preload_faiss_index()
         
         logger.info(f"Initialized VectorSearchService with {'Pinecone' if self.use_pinecone else 'FAISS'}")
     
@@ -95,6 +96,16 @@ class VectorSearchService:
         except Exception as e:
             logger.error(f"Failed to initialize FAISS: {str(e)}")
             raise
+    
+    def _preload_faiss_index(self):
+        """Preload index into memory for faster search"""
+        try:
+            if self.faiss_index and self.faiss_index.ntotal > 0:
+                # Only preload if there are vectors in the index
+                self.faiss_index.reconstruct_n(0, self.faiss_index.ntotal)
+                logger.info("FAISS index preloaded into memory")
+        except Exception as e:
+            logger.warning(f"Could not preload FAISS index: {str(e)}")
     
     def add_documents(self, documents: List[Dict[str, Any]]) -> bool:
         """
@@ -255,6 +266,10 @@ class VectorSearchService:
             query_embedding = query_embedding.reshape(1, -1).astype(np.float32)
             faiss.normalize_L2(query_embedding)
             
+            # Use IVF index if available for faster search
+            if hasattr(self.faiss_index, 'nprobe'):
+                self.faiss_index.nprobe = 5  # Balance speed/accuracy
+            
             # Search
             scores, indices = self.faiss_index.search(query_embedding, min(top_k, self.faiss_index.ntotal))
             
@@ -327,6 +342,9 @@ class VectorSearchService:
                 if os.path.exists(metadata_file):
                     with open(metadata_file, "rb") as f:
                         self.document_metadata = pickle.load(f)
+                
+                # Preload the loaded index
+                self._preload_faiss_index()
                 
                 logger.info(f"Loaded FAISS index from {filepath}")
                 return True

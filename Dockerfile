@@ -18,6 +18,7 @@ COPY requirements.txt ./
 
 # Install Python dependencies
 RUN pip install -r requirements.txt
+RUN python3 nltk_setup.py
 
 # Copy application code
 COPY app/ ./app/
